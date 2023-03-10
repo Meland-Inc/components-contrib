@@ -250,10 +250,11 @@ func getRegistrationConfig(cfg configSpec, props map[string]string) (*consul.Age
 	if len(cfg.Checks) == 0 {
 		cfg.Checks = []*consul.AgentServiceCheck{
 			{
-				Name:     "Dapr Health Status",
-				CheckID:  fmt.Sprintf("daprHealth:%s", id),
-				Interval: "1s",
-				HTTP:     fmt.Sprintf("http://%s/v1.0/healthz/%s", net.JoinHostPort(host, httpPort), appID),
+				Name:                           "Dapr Health Status",
+				CheckID:                        fmt.Sprintf("daprHealth:%s", id),
+				Interval:                       "1s",
+				DeregisterCriticalServiceAfter: "60s",
+				HTTP:                           fmt.Sprintf("http://%s/v1.0/healthz/%s", net.JoinHostPort(host, httpPort), appID),
 			},
 		}
 	}
