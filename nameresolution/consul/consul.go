@@ -252,8 +252,10 @@ func getRegistrationConfig(cfg configSpec, props map[string]string) (*consul.Age
 			{
 				Name:                           "Dapr Health Status",
 				CheckID:                        fmt.Sprintf("daprHealth:%s", id),
-				Interval:                       "1s",
+				Interval:                       "5s",
 				DeregisterCriticalServiceAfter: "60s",
+				FailuresBeforeCritical:         10,
+				SuccessBeforePassing:           1,
 				HTTP:                           fmt.Sprintf("http://%s/v1.0/healthz/%s", net.JoinHostPort(host, httpPort), appID),
 			},
 		}
