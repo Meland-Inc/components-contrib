@@ -19,6 +19,7 @@ import (
 	"math/big"
 	"net"
 	"strconv"
+	"sync"
 
 	consul "github.com/hashicorp/consul/api"
 
@@ -67,9 +68,10 @@ type healthInterface interface {
 }
 
 type resolver struct {
-	config resolverConfig
-	logger logger.Logger
-	client clientInterface
+	config   resolverConfig
+	logger   logger.Logger
+	client   clientInterface
+	registry registryInterface
 }
 
 type resolverConfig struct {
@@ -81,14 +83,15 @@ type resolverConfig struct {
 
 // NewResolver creates Consul name resolver.
 func NewResolver(logger logger.Logger) nr.Resolver {
-	return newResolver(logger, resolverConfig{}, &client{})
+	return newResolver(logger, resolverConfig{}, &client{}, &registry{entries: &sync.Map{}})
 }
 
-func newResolver(logger logger.Logger, resolverConfig resolverConfig, client clientInterface) nr.Resolver {
+func newResolver(logger logger.Logger, resolverConfig resolverConfig, client clientInterface, registry registryInterface) nr.Resolver {
 	return &resolver{
-		logger: logger,
-		config: resolverConfig,
-		client: client,
+		logger:   logger,
+		config:   resolverConfig,
+		client:   client,
+		registry: registry,
 	}
 }
 
@@ -119,16 +122,30 @@ func (r *resolver) Init(metadata nr.Metadata) error {
 	return nil
 }
 
-// ResolveID resolves name to address via consul.
-func (r *resolver) ResolveID(req nr.ResolveRequest) (string, error) {
-	cfg := r.config
-	services, _, err := r.client.Health().Service(req.ID, "", true, cfg.QueryOptions)
-	if err != nil {
-		return "", fmt.Errorf("failed to query healthy consul services: %w", err)
+func (r *resolver) getService(service string) (*consul.ServiceEntry, error) {
+	var services []*consul.ServiceEntry
+
+	var entry *registryEntry
+
+	if entry = r.registry.get(service); entry != nil {
+		result := entry.next()
+
+		if result != nil {
+			return result, nil
+		}
+	} else {
+		r.watchService(service)
 	}
 
-	if len(services) == 0 {
-		return "", fmt.Errorf("no healthy services found with AppID:%s", req.ID)
+	options := *r.config.QueryOptions
+	options.WaitHash = ""
+	options.WaitIndex = 0
+	services, _, err := r.client.Health().Service(service, "", true, &options)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to query healthy consul services: %w", err)
+	} else if len(services) == 0 {
+		return nil, fmt.Errorf("no healthy services found with AppID '%s'", service)
 	}
 
 	shuffle := func(services []*consul.ServiceEntry) []*consul.ServiceEntry {
@@ -142,20 +159,28 @@ func (r *resolver) ResolveID(req nr.ResolveRequest) (string, error) {
 		return services
 	}
 
-	svc := shuffle(services)[0]
+	return shuffle(services)[0], nil
+}
 
-	addr := ""
+// ResolveID resolves name to address via consul.
+func (r *resolver) ResolveID(req nr.ResolveRequest) (addr string, err error) {
+	cfg := r.config
+	svc, err := r.getService(req.ID)
+	if err != nil {
+		return "", err
+	}
 
-	if port, ok := svc.Service.Meta[cfg.DaprPortMetaKey]; ok {
-		if svc.Service.Address != "" {
-			addr = fmt.Sprintf("%s:%s", svc.Service.Address, port)
-		} else if svc.Node.Address != "" {
-			addr = fmt.Sprintf("%s:%s", svc.Node.Address, port)
-		} else {
-			return "", fmt.Errorf("no healthy services found with AppID:%s", req.ID)
-		}
+	port := svc.Service.Meta[cfg.DaprPortMetaKey]
+	if port == "" {
+		return "", fmt.Errorf("target service AppID '%s' found but %s missing from meta", req.ID, cfg.DaprPortMetaKey)
+	}
+
+	if svc.Service.Address != "" {
+		addr = svc.Service.Address + ":" + port
+	} else if svc.Node.Address != "" {
+		addr = svc.Node.Address + ":" + port
 	} else {
-		return "", fmt.Errorf("target service AppID:%s found but DAPR_PORT missing from meta", req.ID)
+		return "", fmt.Errorf("no healthy services found with AppID '%s'", req.ID)
 	}
 
 	return addr, nil

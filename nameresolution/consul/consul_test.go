@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"testing"
 
 	consul "github.com/hashicorp/consul/api"
@@ -99,7 +100,7 @@ func TestInit(t *testing.T) {
 				t.Helper()
 
 				var mock mockClient
-				resolver := newResolver(logger.NewLogger("test"), resolverConfig{}, &mock)
+				resolver := newResolver(logger.NewLogger("test"), resolverConfig{}, &mock, &registry{entries: &sync.Map{}})
 
 				_ = resolver.Init(metadata)
 
@@ -122,7 +123,7 @@ func TestInit(t *testing.T) {
 				t.Helper()
 
 				var mock mockClient
-				resolver := newResolver(logger.NewLogger("test"), resolverConfig{}, &mock)
+				resolver := newResolver(logger.NewLogger("test"), resolverConfig{}, &mock, &registry{entries: &sync.Map{}})
 
 				_ = resolver.Init(metadata)
 
@@ -144,7 +145,7 @@ func TestInit(t *testing.T) {
 				t.Helper()
 
 				var mock mockClient
-				resolver := newResolver(logger.NewLogger("test"), resolverConfig{}, &mock)
+				resolver := newResolver(logger.NewLogger("test"), resolverConfig{}, &mock, &registry{entries: &sync.Map{}})
 
 				_ = resolver.Init(metadata)
 
@@ -187,7 +188,7 @@ func TestResolveID(t *testing.T) {
 						serviceResult: []*consul.ServiceEntry{},
 					},
 				}
-				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock)
+				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock, &registry{entries: &sync.Map{}})
 
 				_, err := resolver.ResolveID(req)
 				assert.Equal(t, 1, mock.mockHealth.serviceCalled)
@@ -216,7 +217,7 @@ func TestResolveID(t *testing.T) {
 						},
 					},
 				}
-				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock)
+				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock, &registry{entries: &sync.Map{}})
 
 				addr, _ := resolver.ResolveID(req)
 
@@ -260,7 +261,7 @@ func TestResolveID(t *testing.T) {
 						},
 					},
 				}
-				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock)
+				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock, &registry{entries: &sync.Map{}})
 
 				addr, _ := resolver.ResolveID(req)
 
@@ -289,7 +290,7 @@ func TestResolveID(t *testing.T) {
 						},
 					},
 				}
-				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock)
+				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock, &registry{entries: &sync.Map{}})
 
 				_, err := resolver.ResolveID(req)
 
@@ -315,7 +316,7 @@ func TestResolveID(t *testing.T) {
 						},
 					},
 				}
-				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock)
+				resolver := newResolver(logger.NewLogger("test"), *testConfig, &mock, &registry{entries: &sync.Map{}})
 
 				_, err := resolver.ResolveID(req)
 
