@@ -75,7 +75,7 @@ func parseRedisMetadata(meta pubsub.Metadata) (metadata, error) {
 		processingTimeout: 60 * time.Second,
 		redeliverInterval: 15 * time.Second,
 		queueDepth:        100,
-		concurrency:       10,
+		concurrency:       100,
 	}
 
 	if val, ok := meta.Properties[consumerID]; ok && val != "" {
