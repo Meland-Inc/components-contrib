@@ -18,11 +18,9 @@ import (
 	"fmt"
 	"math/big"
 	"net"
-	"net/http"
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	consul "github.com/hashicorp/consul/api"
 
@@ -108,13 +106,14 @@ func (r *resolver) Init(metadata nr.Metadata) error {
 		return err
 	}
 
-	r.config.QueryOptions.UseCache = true
-	r.config.QueryOptions.MaxAge = 10 * time.Second
-	r.config.Client.Transport = &http.Transport{
-		IdleConnTimeout:   30 * time.Second,
-		DisableKeepAlives: false,
-		MaxIdleConns:      30,
-	}
+	// 如果 omnibus 注入不生效的时候，再手动 setting
+	// r.config.QueryOptions.UseCache = true
+	// r.config.QueryOptions.MaxAge = 10 * time.Second
+	// r.config.Client.Transport = &http.Transport{
+	// 	IdleConnTimeout:   30 * time.Second,
+	// 	DisableKeepAlives: false,
+	// 	MaxIdleConns:      30,
+	// }
 
 	if err = r.client.InitClient(r.config.Client); err != nil {
 		return fmt.Errorf("failed to init consul client: %w", err)
