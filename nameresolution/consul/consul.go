@@ -18,9 +18,11 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"net/http"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	consul "github.com/hashicorp/consul/api"
 
@@ -110,10 +112,21 @@ func (r *resolver) Init(metadata nr.Metadata) error {
 	// r.config.QueryOptions.UseCache = true
 	// r.config.QueryOptions.MaxAge = 10 * time.Second
 	// r.config.Client.Transport = &http.Transport{
-	// 	IdleConnTimeout:   30 * time.Second,
+	// IdleConnTimeout:   30 * time.Second,
 	// 	DisableKeepAlives: false,
 	// 	MaxIdleConns:      30,
 	// }
+	if r.config.Client.Transport == nil {
+		r.config.Client.Transport = &http.Transport{
+			IdleConnTimeout:   30 * time.Second,
+			DisableKeepAlives: false,
+			MaxIdleConns:      30,
+		}
+	} else {
+		if r.config.Client.Transport.IdleConnTimeout < 10*time.Second {
+			r.config.Client.Transport.IdleConnTimeout = 10 * time.Second
+		}
+	}
 
 	if err = r.client.InitClient(r.config.Client); err != nil {
 		return fmt.Errorf("failed to init consul client: %w", err)
