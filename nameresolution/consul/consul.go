@@ -120,7 +120,7 @@ func (r *resolver) Init(metadata nr.Metadata) error {
 		r.config.Client.Transport = &http.Transport{
 			IdleConnTimeout:   30 * time.Second,
 			DisableKeepAlives: false,
-			MaxIdleConns:      30,
+			MaxIdleConns:      100,
 		}
 	} else {
 		if r.config.Client.Transport.IdleConnTimeout < 10*time.Second {
