@@ -95,9 +95,16 @@ func (r *resolver) watch(p *watchPlan) (blockingParamVal, []*consul.ServiceEntry
 
 func (r *resolver) runWatchPlan(p *watchPlan) {
 	defer func() {
-		recover()
-		r.registry.remove(p.service)
+		if err := recover(); err != nil {
+			r.logger.Errorf("consul service-watcher panic: service=%s error=%v", p.service, err)
+			r.registry.remove(p.service)
+			r.runWatchPlanAtomicSignal.Store(false)
+		}
 	}()
+
+	if !r.runWatchPlanAtomicSignal.CompareAndSwap(false, true) {
+		return
+	}
 
 	// add to registry as now begun watching
 	r.registry.addOrUpdate(p.service, nil)

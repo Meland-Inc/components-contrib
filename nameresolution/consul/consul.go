@@ -18,8 +18,11 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	consul "github.com/hashicorp/consul/api"
 
@@ -68,10 +71,11 @@ type healthInterface interface {
 }
 
 type resolver struct {
-	config   resolverConfig
-	logger   logger.Logger
-	client   clientInterface
-	registry registryInterface
+	config                   resolverConfig
+	logger                   logger.Logger
+	client                   clientInterface
+	registry                 registryInterface
+	runWatchPlanAtomicSignal atomic.Bool
 }
 
 type resolverConfig struct {
@@ -102,6 +106,14 @@ func (r *resolver) Init(metadata nr.Metadata) error {
 	r.config, err = getConfig(metadata)
 	if err != nil {
 		return err
+	}
+
+	r.config.QueryOptions.UseCache = true
+	r.config.QueryOptions.MaxAge = 10 * time.Second
+	r.config.Client.Transport = &http.Transport{
+		IdleConnTimeout:   30 * time.Second,
+		DisableKeepAlives: false,
+		MaxIdleConns:      30,
 	}
 
 	if err = r.client.InitClient(r.config.Client); err != nil {
