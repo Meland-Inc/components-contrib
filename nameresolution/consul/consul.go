@@ -127,6 +127,9 @@ func (r *resolver) Init(metadata nr.Metadata) error {
 			r.config.Client.Transport.IdleConnTimeout = 10 * time.Second
 		}
 	}
+	if r.config.QueryOptions.MaxAge < 5*time.Second {
+		r.config.QueryOptions.MaxAge = 5 * time.Second
+	}
 
 	if err = r.client.InitClient(r.config.Client); err != nil {
 		return fmt.Errorf("failed to init consul client: %w", err)
